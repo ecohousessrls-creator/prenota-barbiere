@@ -138,6 +138,7 @@ a.btn{text-decoration:none;display:inline-block}
     <div id="b-area" style="display:none;flex-direction:column;gap:22px">
     <div class="row"><h2 id="b-hello" style="margin:0"></h2><button class="btn sm" type="button" data-act="logout">Esci</button></div>
     <div><h2>Da ricordare oggi</h2><p class="muted" style="margin:0 0 10px">Clienti di domani: tocca per mandare il promemoria su WhatsApp.</p><div class="list" id="c-remind"></div></div>
+    <div><h2>Tutti gli appuntamenti</h2><div class="list" id="c-all"></div></div>
     <div><h2>Agenda</h2><div class="days" id="c-bdays"></div><div class="list" id="c-agenda" style="margin-top:10px"></div></div>
     <div><h2>Orari di lavoro</h2><div class="card" id="c-hours"></div><p class="msg" id="m-hours" role="status"></p></div>
     <div><h2>Aggiungi una foto</h2>
@@ -179,6 +180,7 @@ try{S.mine=JSON.parse(localStorage.getItem('mine')||'[]')}catch(e){}
 const saveMine=()=>{try{localStorage.setItem('mine',JSON.stringify(S.mine.slice(-30)))}catch(e){}};
 
 try{const a=JSON.parse(sessionStorage.getItem('barber')||'null');if(a){S.auth=true;S.who=a}}catch(e){}
+const saveLocal=()=>{if(S.db)return;try{localStorage.setItem('demoBookings',JSON.stringify(S.bookings))}catch(e){}};
 const barber=id=>(S.cfg.barbers||[]).find(b=>b.id===id);
 const service=id=>(S.cfg.services||[]).find(s=>s.id===id);
 const product=id=>(S.cfg.products||[]).find(p=>p.id===id);
@@ -230,6 +232,8 @@ function render(){
     return `<button class="opt" type="button" data-act="bdate" data-id="${d}" aria-pressed="${S.bdate===d}"><small>${WD[o.getDay()]}</small><b>${o.getDate()}</b><small>${n?n+' app.':'libero'}</small></button>`}).join('');
   const ag=S.bookings.filter(x=>x.barber===S.who&&x.date===S.bdate).sort((a,z)=>a.time.localeCompare(z.time));
   $('#c-agenda').innerHTML=ag.map(x=>bkHtml(x,true)).join('')||`<p class="muted">Nessun appuntamento ${S.bdate===today?'oggi':'per '+esc(longDay(S.bdate))}.</p>`;
+  const all=S.bookings.filter(x=>x.barber===S.who&&x.date>=today).sort((a,z)=>(a.date+a.time).localeCompare(z.date+z.time));let lastD='';
+  $('#c-all').innerHTML=all.map(x=>{const h=x.date!==lastD?`<p class="muted" style="margin:6px 0 0;font-weight:600;text-transform:capitalize">${esc(longDay(x.date))}</p>`:'';lastD=x.date;return h+bkHtml(x,true)}).join('')||'<p class="muted">Nessun appuntamento in arrivo.</p>';
   const tom=nextDays(2)[1],rm=S.bookings.filter(x=>x.barber===S.who&&x.date===tom).sort((a,z)=>a.time.localeCompare(z.time));
   $('#c-remind').innerHTML=rm.map(x=>bkHtml(x,true)).join('')||'<p class="muted">Domani non hai appuntamenti.</p>';
   $('#c-myworks').innerHTML=S.works.filter(w=>w.barber===S.who).map(w=>figHtml(w,true)).join('');
@@ -276,7 +280,7 @@ async function book(){
     if(S.db){const ref=S.db.doc('bookings/'+id);const snap=await ref.get();
       if(snap.exists&&snap.data().name){say('#m-book','Questo orario è appena stato preso. Scegline un altro.','err');return}
       await ref.set(rec);
-    }else S.bookings.push({id,...rec});
+    }else{S.bookings.push({id,...rec});saveLocal()}
     S.mine.push(id);saveMine();
     say('#m-book',`Prenotato: ${sv.name} con ${b.name}, ${longDay(sel.date)} alle ${sel.time}.`,'ok');
     sel.time=null;sel.products=[];render();
@@ -287,10 +291,11 @@ async function cancelBk(id){
   if(S.confirm!==id){S.confirm=id;render();return}
   S.confirm=null;
   try{if(S.db)await S.db.doc('bookings/'+id).delete();else S.bookings=S.bookings.filter(x=>x.id!==id)}catch(e){}
-  S.mine=S.mine.filter(x=>x!==id);saveMine();render();
+  saveLocal();S.mine=S.mine.filter(x=>x!==id);saveMine();render();
 }
 async function doneBk(id){
   try{if(S.db)await S.db.doc('bookings/'+id).update({done:true});else{const x=S.bookings.find(x=>x.id===id);if(x)x.done=true}}catch(e){}
+  saveLocal();
   render();
 }
 async function saveHours(){
@@ -357,13 +362,13 @@ addEventListener('hashchange',route);
 
 function status(k){
   const d=$('#dot'),t=$('#status');d.className='dot '+(k==='live'?'live':k==='wait'?'':'demo');
-  t.textContent={wait:'Collegamento in corso',live:'Prenotazioni salvate e condivise',demo:'Modalità prova: dati di esempio, niente viene salvato',slow:'Dati non ancora raggiungibili, potrebbero non essere aggiornati',err:'Collegamento interrotto: riapri la pagina più tardi'}[k];
+  t.textContent={wait:'Collegamento in corso',live:'Prenotazioni salvate e condivise',demo:'Modalità prova: le prenotazioni restano solo su questo telefono',slow:'Dati non ancora raggiungibili, potrebbero non essere aggiornati',err:'Collegamento interrotto: riapri la pagina più tardi'}[k];
 }
 async function connect(){
   let db=null,user=null;
   try{if(window.claude&&window.claude.use){[db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')])}}catch(e){}
   if(user){try{S.uid=await user.id()}catch(e){}}
-  if(!db){status('demo');render();return}
+  if(!db){try{S.bookings=JSON.parse(localStorage.getItem('demoBookings')||'[]').filter(x=>x&&x.name&&x.time&&x.date>=today)}catch(e){}status('demo');render();return}
   S.db=db;
   const timer=setTimeout(()=>status('slow'),10000);
   const ok=s=>{if(!s.metadata.fromCache){clearTimeout(timer);status('live')}};
