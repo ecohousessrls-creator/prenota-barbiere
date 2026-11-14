@@ -126,7 +126,17 @@ a.btn{text-decoration:none;display:inline-block}
   </section>
 
   <section class="view" id="v-barbiere">
-    <div><h2>Chi sei</h2><div class="chips" id="c-who"></div></div>
+    <div id="b-login"><h2>Accesso barbiere</h2>
+      <div class="card fields">
+        <div><label for="l-who">Barbiere</label><select id="l-who"></select></div>
+        <div><label for="l-pin">Codice</label><input type="tel" id="l-pin" inputmode="numeric" autocomplete="off"></div>
+        <button class="btn sm" id="b-login-go" type="button">Entra</button>
+        <p class="msg" id="m-login" role="status"></p>
+        <p class="muted" style="margin:0">Versione demo: accesso di prova, non una protezione reale.</p>
+      </div>
+    </div>
+    <div id="b-area" style="display:none;flex-direction:column;gap:22px">
+    <div class="row"><h2 id="b-hello" style="margin:0"></h2><button class="btn sm" type="button" data-act="logout">Esci</button></div>
     <div><h2>Da ricordare oggi</h2><p class="muted" style="margin:0 0 10px">Clienti di domani: tocca per mandare il promemoria su WhatsApp.</p><div class="list" id="c-remind"></div></div>
     <div><h2>Agenda</h2><div class="days" id="c-bdays"></div><div class="list" id="c-agenda" style="margin-top:10px"></div></div>
     <div><h2>Orari di lavoro</h2><div class="card" id="c-hours"></div><p class="msg" id="m-hours" role="status"></p></div>
@@ -138,6 +148,7 @@ a.btn{text-decoration:none;display:inline-block}
         <p class="msg" id="m-photo" role="status"></p>
       </div>
       <div class="gal" id="c-myworks" style="margin-top:10px"></div>
+    </div>
     </div>
   </section>
 </div>
@@ -159,13 +170,15 @@ const DEMO={name:'La tua barberia',
   services:[{id:'s1',name:'Taglio capelli',min:30,price:18},{id:'s2',name:'Barba',min:30,price:10},{id:'s3',name:'Taglio + barba',min:60,price:25},{id:'s4',name:'Taglio bambino',min:30,price:12}],
   products:[{id:'p1',name:'Cera opaca',price:12},{id:'p2',name:'Olio da barba',price:14},{id:'p3',name:'Shampoo uomo',price:9}]};
 
+const DEMO_PIN='1234';
 const today=ymd(new Date());
 const S={cfg:DEMO,bookings:[],works:[],db:null,uid:null,
   sel:{barber:null,service:null,date:null,time:null,products:[]},
-  mine:[],who:null,bdate:today,gal:'all',confirm:null};
+  mine:[],who:null,auth:false,bdate:today,gal:'all',confirm:null};
 try{S.mine=JSON.parse(localStorage.getItem('mine')||'[]')}catch(e){}
 const saveMine=()=>{try{localStorage.setItem('mine',JSON.stringify(S.mine.slice(-30)))}catch(e){}};
 
+try{const a=JSON.parse(sessionStorage.getItem('barber')||'null');if(a){S.auth=true;S.who=a}}catch(e){}
 const barber=id=>(S.cfg.barbers||[]).find(b=>b.id===id);
 const service=id=>(S.cfg.services||[]).find(s=>s.id===id);
 const product=id=>(S.cfg.products||[]).find(p=>p.id===id);
@@ -209,7 +222,10 @@ function render(){
   $('#c-gal').innerHTML=g.map(w=>figHtml(w,false)).join('')||'<p class="muted" style="grid-column:1/-1">Ancora nessuna foto. I barbieri le pubblicano dalla scheda Barbiere.</p>';
   // barber side
   if(!barber(S.who))S.who=(c.barbers||[])[0]?.id||null;
-  $('#c-who').innerHTML=(c.barbers||[]).map(x=>`<button class="opt" type="button" data-act="who" data-id="${esc(x.id)}" aria-pressed="${S.who===x.id}">${esc(x.name)}</button>`).join('');
+  const lw=$('#l-who'),sig=(c.barbers||[]).map(x=>x.id+x.name).join('|');
+  if(lw.dataset.sig!==sig){lw.dataset.sig=sig;lw.innerHTML=(c.barbers||[]).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}
+  $('#b-login').style.display=S.auth?'none':'';$('#b-area').style.display=S.auth?'flex':'none';
+  $('#b-hello').textContent=S.auth?'Ciao '+(barber(S.who)?.name||''):'';
   $('#c-bdays').innerHTML=nextDays(14).map(d=>{const o=dObj(d),n=S.bookings.filter(x=>x.barber===S.who&&x.date===d).length;
     return `<button class="opt" type="button" data-act="bdate" data-id="${d}" aria-pressed="${S.bdate===d}"><small>${WD[o.getDay()]}</small><b>${o.getDate()}</b><small>${n?n+' app.':'libero'}</small></button>`}).join('');
   const ag=S.bookings.filter(x=>x.barber===S.who&&x.date===S.bdate).sort((a,z)=>a.time.localeCompare(z.time));
@@ -316,6 +332,7 @@ document.addEventListener('click',e=>{
   else if(a==='product')sel.products=sel.products.includes(id)?sel.products.filter(x=>x!==id):[...sel.products,id];
   else if(a==='gal')S.gal=id;
   else if(a==='who'){S.who=id;render();renderHours();return}
+  else if(a==='logout'){S.auth=false;try{sessionStorage.removeItem('barber')}catch(e){}}
   else if(a==='bdate')S.bdate=id;
   else if(a==='cancel')return cancelBk(id);
   else if(a==='done')return doneBk(id);
@@ -325,6 +342,11 @@ document.addEventListener('click',e=>{
 });
 $('#b-book').addEventListener('click',book);
 $('#b-photo').addEventListener('click',addPhoto);
+$('#b-login-go').addEventListener('click',()=>{
+  if($('#l-pin').value.trim()!==DEMO_PIN)return say('#m-login','Codice non valido.','err');
+  S.auth=true;S.who=$('#l-who').value;try{sessionStorage.setItem('barber',JSON.stringify(S.who))}catch(e){}
+  $('#l-pin').value='';say('#m-login','','');render();renderHours();
+});
 
 function route(){
   const h=['prenota','lavori','barbiere'].includes(location.hash.slice(1))?location.hash.slice(1):'prenota';
