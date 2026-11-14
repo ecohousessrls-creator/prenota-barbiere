@@ -175,12 +175,17 @@ const DEMO_PIN='1234';
 const today=ymd(new Date());
 const S={cfg:DEMO,bookings:[],works:[],db:null,uid:null,
   sel:{barber:null,service:null,date:null,time:null,products:[]},
-  mine:[],who:null,auth:false,bdate:today,gal:'all',confirm:null};
+  mine:[],who:null,auth:false,remote:false,bdate:today,gal:'all',confirm:null};
 try{S.mine=JSON.parse(localStorage.getItem('mine')||'[]')}catch(e){}
 const saveMine=()=>{try{localStorage.setItem('mine',JSON.stringify(S.mine.slice(-30)))}catch(e){}};
 
 try{const a=JSON.parse(sessionStorage.getItem('barber')||'null');if(a){S.auth=true;S.who=a}}catch(e){}
-const saveLocal=()=>{if(S.db)return;try{localStorage.setItem('demoBookings',JSON.stringify(S.bookings))}catch(e){}};
+const FS='https://firestore.googleapis.com/v1/projects/prenota-barbiere-825cb/databases/(default)/documents/bookings';
+const JH={'Content-Type':'application/json'};
+const fsEnc=o=>({fields:{barber:{stringValue:o.barber},service:{stringValue:o.service},date:{stringValue:o.date},time:{stringValue:o.time},min:{integerValue:String(o.min)},name:{stringValue:o.name},phone:{stringValue:o.phone},products:{arrayValue:{values:(o.products||[]).map(p=>({stringValue:p}))}},ts:{integerValue:String(o.ts)},done:{booleanValue:!!o.done}}});
+const fsDec=d=>{const f=d.fields||{};return{id:d.name.split('/').pop(),barber:f.barber?.stringValue,service:f.service?.stringValue,date:f.date?.stringValue,time:f.time?.stringValue,min:Number(f.min?.integerValue||30),name:f.name?.stringValue,phone:f.phone?.stringValue,products:(f.products?.arrayValue?.values||[]).map(v=>v.stringValue),done:!!f.done?.booleanValue}};
+async function fsLoad(){const r=await fetch(FS+'?pageSize=300');if(!r.ok)throw new Error('fs');const j=await r.json();S.bookings=(j.documents||[]).map(fsDec).filter(x=>x.name&&x.time&&x.date>=today);S.remote=true;status('live');render()}
+const saveLocal=()=>{if(S.db||S.remote)return;try{localStorage.setItem('demoBookings',JSON.stringify(S.bookings))}catch(e){}};
 const barber=id=>(S.cfg.barbers||[]).find(b=>b.id===id);
 const service=id=>(S.cfg.services||[]).find(s=>s.id===id);
 const product=id=>(S.cfg.products||[]).find(p=>p.id===id);
@@ -280,6 +285,9 @@ async function book(){
     if(S.db){const ref=S.db.doc('bookings/'+id);const snap=await ref.get();
       if(snap.exists&&snap.data().name){say('#m-book','Questo orario è appena stato preso. Scegline un altro.','err');return}
       await ref.set(rec);
+    }else if(S.remote){const r=await fetch(FS+'?documentId='+encodeURIComponent(id),{method:'POST',headers:JH,body:JSON.stringify(fsEnc(rec))});
+      if(r.status===409){say('#m-book','Questo orario è appena stato preso. Scegline un altro.','err');return}
+      if(!r.ok)throw new Error('fs');S.bookings.push({id,...rec});
     }else{S.bookings.push({id,...rec});saveLocal()}
     S.mine.push(id);saveMine();
     say('#m-book',`Prenotato: ${sv.name} con ${b.name}, ${longDay(sel.date)} alle ${sel.time}.`,'ok');
@@ -290,11 +298,11 @@ async function book(){
 async function cancelBk(id){
   if(S.confirm!==id){S.confirm=id;render();return}
   S.confirm=null;
-  try{if(S.db)await S.db.doc('bookings/'+id).delete();else S.bookings=S.bookings.filter(x=>x.id!==id)}catch(e){}
+  try{if(S.db)await S.db.doc('bookings/'+id).delete();else{if(S.remote)await fetch(FS+'/'+encodeURIComponent(id),{method:'DELETE'});S.bookings=S.bookings.filter(x=>x.id!==id)}}catch(e){}
   saveLocal();S.mine=S.mine.filter(x=>x!==id);saveMine();render();
 }
 async function doneBk(id){
-  try{if(S.db)await S.db.doc('bookings/'+id).update({done:true});else{const x=S.bookings.find(x=>x.id===id);if(x)x.done=true}}catch(e){}
+  try{if(S.db)await S.db.doc('bookings/'+id).update({done:true});else{if(S.remote)await fetch(FS+'/'+encodeURIComponent(id)+'?updateMask.fieldPaths=done',{method:'PATCH',headers:JH,body:JSON.stringify({fields:{done:{booleanValue:true}}})});const x=S.bookings.find(x=>x.id===id);if(x)x.done=true}}catch(e){}
   saveLocal();
   render();
 }
@@ -368,7 +376,8 @@ async function connect(){
   let db=null,user=null;
   try{if(window.claude&&window.claude.use){[db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')])}}catch(e){}
   if(user){try{S.uid=await user.id()}catch(e){}}
-  if(!db){try{S.bookings=JSON.parse(localStorage.getItem('demoBookings')||'[]').filter(x=>x&&x.name&&x.time&&x.date>=today)}catch(e){}status('demo');render();return}
+  if(!db){try{await fsLoad();setInterval(()=>fsLoad().catch(()=>{}),15000);return}catch(e){}
+    try{S.bookings=JSON.parse(localStorage.getItem('demoBookings')||'[]').filter(x=>x&&x.name&&x.time&&x.date>=today)}catch(e){}status('demo');render();return}
   S.db=db;
   const timer=setTimeout(()=>status('slow'),10000);
   const ok=s=>{if(!s.metadata.fromCache){clearTimeout(timer);status('live')}};
