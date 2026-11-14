@@ -65,6 +65,7 @@ input[type=text],input[type=tel],input[type=time],select{font:inherit;color:var(
 .btn{font:inherit;font-family:var(--display);font-weight:700;font-size:22px;text-transform:uppercase;letter-spacing:.05em;background:var(--red);color:#fff;border:0;border-radius:8px;padding:14px;width:100%;cursor:pointer}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .btn.sm{font-family:var(--body);font-size:14px;font-weight:600;text-transform:none;letter-spacing:0;width:auto;padding:8px 12px;background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+a.btn{text-decoration:none;display:inline-block}
 .btn.sm.warn{border-color:var(--red);color:var(--red)}
 .btn.sm.good{border-color:var(--ok);color:var(--ok)}
 .msg{font-size:14px;min-height:20px;margin:0}
@@ -126,6 +127,7 @@ input[type=text],input[type=tel],input[type=time],select{font:inherit;color:var(
 
   <section class="view" id="v-barbiere">
     <div><h2>Chi sei</h2><div class="chips" id="c-who"></div></div>
+    <div><h2>Da ricordare oggi</h2><p class="muted" style="margin:0 0 10px">Clienti di domani: tocca per mandare il promemoria su WhatsApp.</p><div class="list" id="c-remind"></div></div>
     <div><h2>Agenda</h2><div class="days" id="c-bdays"></div><div class="list" id="c-agenda" style="margin-top:10px"></div></div>
     <div><h2>Orari di lavoro</h2><div class="card" id="c-hours"></div><p class="msg" id="m-hours" role="status"></p></div>
     <div><h2>Aggiungi una foto</h2>
@@ -212,7 +214,14 @@ function render(){
     return `<button class="opt" type="button" data-act="bdate" data-id="${d}" aria-pressed="${S.bdate===d}"><small>${WD[o.getDay()]}</small><b>${o.getDate()}</b><small>${n?n+' app.':'libero'}</small></button>`}).join('');
   const ag=S.bookings.filter(x=>x.barber===S.who&&x.date===S.bdate).sort((a,z)=>a.time.localeCompare(z.time));
   $('#c-agenda').innerHTML=ag.map(x=>bkHtml(x,true)).join('')||`<p class="muted">Nessun appuntamento ${S.bdate===today?'oggi':'per '+esc(longDay(S.bdate))}.</p>`;
+  const tom=nextDays(2)[1],rm=S.bookings.filter(x=>x.barber===S.who&&x.date===tom).sort((a,z)=>a.time.localeCompare(z.time));
+  $('#c-remind').innerHTML=rm.map(x=>bkHtml(x,true)).join('')||'<p class="muted">Domani non hai appuntamenti.</p>';
   $('#c-myworks').innerHTML=S.works.filter(w=>w.barber===S.who).map(w=>figHtml(w,true)).join('');
+}
+function waLink(x){
+  let p=String(x.phone||'').replace(/[^0-9]/g,'');if(p.length<=10&&p[0]==='3')p='39'+p;
+  const sv=service(x.service),b=barber(x.barber);
+  return 'https://wa.me/'+p+'?text='+encodeURIComponent(`Ciao ${x.name}, ti ricordiamo l'appuntamento di ${longDay(x.date)} alle ${x.time} da ${S.cfg.name||'noi'}: ${sv?.name||'servizio'} con ${b?.name||'il tuo barbiere'}.`);
 }
 function bkHtml(x,forBarber){
   const sv=service(x.service),b=barber(x.barber),ask=S.confirm===x.id;
@@ -221,7 +230,7 @@ function bkHtml(x,forBarber){
     <p><b>${esc(forBarber?x.name:(sv?.name||'Servizio'))}</b> ${x.done?'<span class="pill">Fatto</span>':''}</p>
     <p class="muted">${forBarber?esc(sv?.name||'')+' · '+(x.min||30)+' min · '+esc(x.phone||''):'con '+esc(b?.name||'')+' · '+esc(longDay(x.date))}</p>
     ${prods?`<p class="muted">Da ritirare: ${esc(prods)}</p>`:''}
-    <div class="acts">${forBarber&&!x.done?`<button class="btn sm good" type="button" data-act="done" data-id="${esc(x.id)}">Segna come fatto</button>`:''}
+    <div class="acts">${forBarber&&!x.done?`<a class="btn sm" href="${esc(waLink(x))}" target="_blank" rel="noopener">Ricorda su WhatsApp</a><button class="btn sm good" type="button" data-act="done" data-id="${esc(x.id)}">Segna come fatto</button>`:''}
     <button class="btn sm warn" type="button" data-act="cancel" data-id="${esc(x.id)}">${ask?'Tocca ancora per annullare':'Annulla'}</button></div>
   </div></div>`;
 }
