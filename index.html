@@ -93,13 +93,13 @@ a.btn{text-decoration:none;display:inline-block}
 .gc{min-height:38px;border-radius:5px;font:inherit;font-size:12px;line-height:1.2;padding:3px 5px;overflow:hidden;border:0;text-align:left}
 .gc.free{background:var(--surface);border:1.5px dashed var(--line);color:var(--muted);cursor:pointer;text-align:center}
 .gc.off{background-image:repeating-linear-gradient(-45deg,var(--line) 0 2px,transparent 2px 7px)}
-.gc.busy{background:var(--red);color:#fff}
+.gc.busy{background:var(--red);color:#fff;cursor:pointer}
 .gc.busy b,.gc.busy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gc.busy b{font-weight:600}
 .gc.busy.dn{background:var(--muted)}
 .gc.free:hover{border-color:var(--blue)}
 .gc.sel{border:2px solid var(--blue);background:var(--blue-soft)}
-#sheet{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:2px solid var(--ink);padding:12px 16px 16px;box-shadow:0 -6px 20px rgba(0,0,0,.18)}
+#sheet{max-height:85%;overflow:auto;position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:2px solid var(--ink);padding:12px 16px 16px;box-shadow:0 -6px 20px rgba(0,0,0,.18)}
 .sheet-in{max-width:560px;margin:0 auto;display:grid;gap:10px}
 #sh-title{margin:0;font-weight:600}
 :focus-visible{outline:3px solid var(--blue);outline-offset:2px}
@@ -172,9 +172,10 @@ a.btn{text-decoration:none;display:inline-block}
 
 <div id="sheet" style="display:none"><div class="sheet-in">
   <p id="sh-title"></p>
-  <input type="text" id="g-in" placeholder="Nome cliente" autocomplete="off" enterkeyhint="done" aria-label="Nome cliente">
+  <input type="text" id="g-in" placeholder="Nome" autocomplete="off" enterkeyhint="done" aria-label="Nome">
+  <div class="two"><input type="text" id="g-sur" placeholder="Cognome (facoltativo)" autocomplete="off" aria-label="Cognome"><input type="tel" id="g-tel" placeholder="Telefono (facoltativo)" inputmode="tel" autocomplete="off" aria-label="Telefono"></div>
   <div class="chips" id="c-qsv"></div>
-  <div style="display:flex;gap:8px"><button class="btn sm good" id="sh-save" type="button">Salva</button><button class="btn sm" type="button" data-act="addclose">Chiudi</button></div>
+  <div id="sh-acts" style="display:flex;gap:8px;flex-wrap:wrap"></div>
   <p class="msg" id="m-add" role="status"></p>
 </div></div>
 
@@ -192,7 +193,7 @@ const WD=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
 // Example setup, used only until the saved one loads or when saving is unavailable.
 const DEMO={name:'La tua barberia',
   barbers:[{id:'b1',name:'Armand',days:[2,3,4,5,6],start:'09:00',end:'19:00'},{id:'b2',name:'Luca',days:[2,3,4,5,6],start:'09:00',end:'19:00'},{id:'b3',name:'Dario',days:[3,4,5,6],start:'10:00',end:'19:30'}],
-  services:[{id:'s1',name:'Taglio capelli',min:30,price:18},{id:'s2',name:'Barba',min:30,price:10},{id:'s3',name:'Taglio + barba',min:60,price:25},{id:'s4',name:'Taglio bambino',min:30,price:12}],
+  services:[{id:'s1',name:'Taglio capelli',min:30,price:18,desc:'Shampoo prima, taglio, shampoo dopo e pettinatura'},{id:'s2',name:'Barba',min:30,price:10},{id:'s3',name:'Taglio + barba',min:60,price:25,desc:'Shampoo prima, taglio, barba, shampoo dopo e pettinatura'},{id:'s4',name:'Taglio bambino',min:30,price:12}],
   products:[{id:'p1',name:'Cera opaca',price:12},{id:'p2',name:'Olio da barba',price:14},{id:'p3',name:'Shampoo uomo',price:9}]};
 
 const DEMO_PIN='1234';
@@ -231,7 +232,7 @@ function render(){
   if(!S.bset){S.bset=true;const fd=nextDays(14).find(d=>(c.barbers||[]).some(x=>slots(x,d,30).some(z=>z.free)));if(fd)S.bdate=fd}
   $('#shop').textContent=c.name||'Barberia';
   $('#c-barbers').innerHTML=(c.barbers||[]).map(b=>`<button class="opt c" type="button" data-act="barber" data-id="${esc(b.id)}" aria-pressed="${sel.barber===b.id}">${esc(b.name)}</button>`).join('')||'<p class="muted">Nessun barbiere inserito.</p>';
-  $('#c-services').innerHTML=(c.services||[]).map(s=>`<button class="opt" type="button" data-act="service" data-id="${esc(s.id)}" aria-pressed="${sel.service===s.id}"><span class="row"><span><b>${esc(s.name)}</b><small>${s.min} minuti</small></span><span class="price">${eur(s.price)}</span></span></button>`).join('');
+  $('#c-services').innerHTML=(c.services||[]).map(s=>`<button class="opt" type="button" data-act="service" data-id="${esc(s.id)}" aria-pressed="${sel.service===s.id}"><span class="row"><span><b>${esc(s.name)}</b><small>${s.min} minuti${s.desc?' · '+esc(s.desc):''}</small></span><span class="price">${eur(s.price)}</span></span></button>`).join('');
   const b=barber(sel.barber),sv=service(sel.service);
   $('#c-days').innerHTML=nextDays(14).map(d=>{const o=dObj(d),closed=b&&!(b.days||[]).includes(o.getDay());
     return `<button class="opt" type="button" data-act="date" data-id="${d}" aria-pressed="${sel.date===d}" ${closed?'disabled':''}><small>${WD[o.getDay()]}</small><b>${o.getDate()}</b><small>${o.toLocaleDateString('it-IT',{month:'short'})}</small></button>`}).join('');
@@ -268,13 +269,16 @@ function render(){
     let g='<div class="gh"></div>'+bs.map(x=>`<div class="gh">${esc(x.name)}</div>`).join('');
     for(let m=st;m<en;m+=30){g+=`<div class="gt">${fromMin(m)}</div>`;
       for(const x of bs){const t=fromMin(m),bk=S.bookings.find(k=>k.barber===x.id&&k.date===S.bdate&&toMin(k.time)<=m&&m<toMin(k.time)+(k.min||30));
-        if(bk)g+=toMin(bk.time)===m?`<div class="gc busy${bk.done?' dn':''}"><b>${esc(bk.name)}</b><small>${esc(service(bk.service)?.name||'')}</small></div>`:`<div class="gc busy${bk.done?' dn':''}"></div>`;
+        if(bk)g+=toMin(bk.time)===m?`<button type="button" class="gc busy${bk.done?' dn':''}" data-act="edit" data-id="${esc(bk.id)}"><b>${esc(bk.name)}</b><small>${esc(service(bk.service)?.name||'')}</small></button>`:`<button type="button" class="gc busy${bk.done?' dn':''}" data-act="edit" data-id="${esc(bk.id)}" aria-label="${esc(bk.name)}"></button>`;
         else if(!(x.days||[]).includes(gd)||m<toMin(x.start)||m>=toMin(x.end)||(S.bdate===today&&m<=nwM))g+='<div class="gc off"></div>';
         else if(S.add&&S.add.b===x.id&&S.add.t===t)g+='<div class="gc free sel"></div>';
         else g+=`<button class="gc free" type="button" data-act="slot" data-id="${esc(x.id)}|${t}" aria-label="Segna appuntamento ${esc(x.name)} ${t}"></button>`}}
     $('#c-grid').style.gridTemplateColumns=`46px repeat(${bs.length},minmax(0,1fr))`;$('#c-grid').innerHTML=g}
-  const ad=S.add&&barber(S.add.b);$('#sheet').style.display=ad&&S.auth?'':'none';
-  if(ad)$('#sh-title').textContent=`${ad.name} · ${longDay(S.bdate)} · ${S.add.t}`;
+  const ad=S.add&&barber(S.add.b),eb=S.add&&S.add.edit?S.bookings.find(x=>x.id===S.add.edit):null;
+  if(S.add&&S.add.edit&&!eb)S.add=null;
+  $('#sheet').style.display=S.add&&ad&&S.auth?'':'none';
+  if(S.add&&ad){$('#sh-title').textContent=`${eb?'Modifica: ':''}${ad.name} · ${longDay(eb?eb.date:S.bdate)} · ${S.add.t}`;
+    $('#sh-acts').innerHTML=`<button class="btn sm good" type="button" data-act="sheetsave">Salva</button>${eb?`<button class="btn sm warn" type="button" data-act="cancel" data-id="${esc(eb.id)}">${S.confirm===eb.id?'Tocca ancora per cancellare':'Cancella appuntamento'}</button>`:''}<button class="btn sm" type="button" data-act="addclose">Chiudi</button>`}
   const all=S.bookings.filter(x=>x.barber===S.who&&x.date>=today).sort((a,z)=>(a.date+a.time).localeCompare(z.date+z.time));let lastD='';
   $('#c-all').innerHTML=all.map(x=>{const h=x.date!==lastD?`<p class="muted" style="margin:6px 0 0;font-weight:600;text-transform:capitalize">${esc(longDay(x.date))}</p>`:'';lastD=x.date;return h+bkHtml(x,true)}).join('')||'<p class="muted">Nessun appuntamento in arrivo.</p>';
   const tom=nextDays(2)[1],rm=S.bookings.filter(x=>x.barber===S.who&&x.date===tom).sort((a,z)=>a.time.localeCompare(z.time));
@@ -340,15 +344,23 @@ async function saveBooking(id,rec){
   return true;
 }
 async function addByBarber(){
-  const a=S.add,gi=$('#g-in');if(!a||!gi||S.saving)return;const b=barber(a.b),sv=service(S.qsv),name=gi.value.trim();
-  if(name.length<2)return say('#m-add','Scrivi il nome del cliente.','err');
-  if(!b||!sv||!slots(b,S.bdate,sv.min).find(x=>x.t===a.t&&x.free))return say('#m-add',sv?sv.name+' non ci sta in questo orario. Scegli un servizio più corto o un altro orario.':'Scegli un servizio.','err');
-  const id=S.bdate+'_'+b.id+'_'+a.t.replace(':','');
-  const rec={barber:b.id,service:sv.id,date:S.bdate,time:a.t,min:sv.min,name,phone:'',products:[],by:null,ts:Date.now(),done:false};
+  const a=S.add,gi=$('#g-in');if(!a||S.saving)return;const b=barber(a.b),sv=service(S.qsv);
+  const name=(gi.value.trim()+' '+$('#g-sur').value.trim()).trim(),phone=$('#g-tel').value.trim();
+  if(gi.value.trim().length<2)return say('#m-add','Scrivi il nome del cliente.','err');
+  const old=a.edit?S.bookings.find(x=>x.id===a.edit):null,date=old?old.date:S.bdate;
+  const fits=b&&sv&&!S.bookings.some(x=>x.barber===b.id&&x.date===date&&x.id!==a.edit&&toMin(a.t)<toMin(x.time)+(x.min||30)&&toMin(a.t)+sv.min>toMin(x.time))&&toMin(a.t)+sv.min<=toMin(b.end);
+  if(!fits)return say('#m-add',sv?sv.name+' non ci sta in questo orario. Scegli un servizio più corto o un altro orario.':'Scegli un servizio.','err');
   S.saving=true;
-  try{if(!(await saveBooking(id,rec))){say('#m-add','Questo orario è appena stato preso.','err');return}
-    gi.value='';if(S.add===a)S.add=null;say('#m-add','Segnato: '+name+', '+a.t+'.','ok');render()}
-  catch(e){say('#m-add','Appuntamento non salvato. Riprova.','err')}
+  try{
+    if(old){const ch={service:sv.id,min:sv.min,name,phone};
+      if(S.db)await S.db.doc('bookings/'+old.id).update(ch);
+      else if(S.remote){const r=await fetch(FS+'/'+encodeURIComponent(old.id)+'?updateMask.fieldPaths=service&updateMask.fieldPaths=min&updateMask.fieldPaths=name&updateMask.fieldPaths=phone',{method:'PATCH',headers:JH,body:JSON.stringify({fields:{service:{stringValue:sv.id},min:{integerValue:String(sv.min)},name:{stringValue:name},phone:{stringValue:phone}}})});if(!r.ok)throw new Error('fs')}
+      Object.assign(old,ch);saveLocal();
+    }else{const id=date+'_'+b.id+'_'+a.t.replace(':','');
+      const rec={barber:b.id,service:sv.id,date,time:a.t,min:sv.min,name,phone,products:[],by:null,ts:Date.now(),done:false};
+      if(!(await saveBooking(id,rec))){say('#m-add','Questo orario è appena stato preso.','err');return}}
+    if(S.add===a)S.add=null;say('#m-add','','');render()}
+  catch(e){say('#m-add','Non salvato. Riprova.','err')}
   finally{S.saving=false}
 }
 async function cancelBk(id){
@@ -403,7 +415,9 @@ document.addEventListener('click',e=>{
   else if(a==='who'){S.who=id;render();renderHours();return}
   else if(a==='logout'){S.auth=false;try{sessionStorage.removeItem('barber')}catch(e){}}
   else if(a==='bdate'){S.bdate=id;S.add=null}
-  else if(a==='slot'){const p=id.split('|'),o=$('#g-in');if(o)o.value='';S.add={b:p[0],t:p[1]};say('#m-add','','');$('#sheet').style.display='';$('#g-in').focus()}
+  else if(a==='slot'){const p=id.split('|');S.add={b:p[0],t:p[1]};$('#g-in').value='';$('#g-sur').value='';$('#g-tel').value='';say('#m-add','','');$('#sheet').style.display='';$('#g-in').focus()}
+  else if(a==='edit'){const k=S.bookings.find(x=>x.id===id);if(k){S.add={b:k.barber,t:k.time,edit:k.id};S.qsv=k.service;$('#g-in').value=k.name||'';$('#g-sur').value='';$('#g-tel').value=k.phone||'';say('#m-add','','')}}
+  else if(a==='sheetsave')return addByBarber();
   else if(a==='qsv')S.qsv=id;
   else if(a==='addclose')S.add=null;
   else if(a==='cancel')return cancelBk(id);
@@ -415,7 +429,6 @@ document.addEventListener('click',e=>{
 $('#b-book').addEventListener('click',book);
 $('#b-photo').addEventListener('click',addPhoto);
 document.addEventListener('keydown',e=>{if(e.target.id!=='g-in')return;if(e.key==='Enter'){e.preventDefault();addByBarber()}else if(e.key==='Escape'){S.add=null;render()}});
-$('#sh-save').addEventListener('click',addByBarber);
 $('#b-login-go').addEventListener('click',()=>{
   if($('#l-pin').value.trim()!==DEMO_PIN)return say('#m-login','Codice non valido.','err');
   S.auth=true;S.who=$('#l-who').value;try{sessionStorage.setItem('barber',JSON.stringify(S.who))}catch(e){}
