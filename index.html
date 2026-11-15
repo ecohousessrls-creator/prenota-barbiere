@@ -493,6 +493,8 @@ async function connect(){
   db.collection('works').orderBy('ts','desc').limit(40).onSnapshot(s=>{S.works=s.docs.map(d=>({id:d.id,...d.data()}));render()},err);
 }
 route();render();renderHours();renderTeam();status('wait');connect();
+let shT;function armSheet(){clearTimeout(shT);if(S.add)shT=setTimeout(()=>{if(S.add){S.add=null;render()}},40000)}
+addEventListener('click',()=>setTimeout(armSheet,0));addEventListener('input',armSheet);
 </script>
 </body>
 </html>
