@@ -297,7 +297,7 @@ function render(){
     let g='<div class="gh"></div>'+bs.map(x=>`<div class="gh">${esc(x.name)}</div>`).join('');
     for(let m=st;m<en;m+=30){g+=`<div class="gt">${fromMin(m)}</div>`;
       for(const x of bs){const t=fromMin(m),bk=S.bookings.find(k=>k.barber===x.id&&k.date===S.bdate&&toMin(k.time)<=m&&m<toMin(k.time)+(k.min||30));
-        if(bk)g+=toMin(bk.time)===m?`<button type="button" class="gc busy${bk.done?' dn':''}" data-act="edit" data-id="${esc(bk.id)}"><b>${esc(bk.name)}</b><small>${esc(service(bk.service)?.name||'')}</small></button>`:`<button type="button" class="gc busy${bk.done?' dn':''}" data-act="edit" data-id="${esc(bk.id)}" aria-label="${esc(bk.name)}"></button>`;
+        if(bk)g+=toMin(bk.time)===m?`<button type="button" class="gc busy${bk.done||(bk.date===today&&nwM>=toMin(bk.time)+(bk.min||30))?' dn':''}" data-act="edit" data-id="${esc(bk.id)}"><b>${esc(bk.name)}</b><small>${esc(service(bk.service)?.name||'')}</small></button>`:`<button type="button" class="gc busy${bk.done||(bk.date===today&&nwM>=toMin(bk.time)+(bk.min||30))?' dn':''}" data-act="edit" data-id="${esc(bk.id)}" aria-label="${esc(bk.name)}"></button>`;
         else if(!(x.days||[]).includes(gd)||m<toMin(x.start)||m>=toMin(x.end)||(S.bdate===today&&m<=nwM))g+='<div class="gc off"></div>';
         else if(S.add&&S.add.b===x.id&&S.add.t===t)g+='<div class="gc free sel"></div>';
         else g+=`<button class="gc free" type="button" data-act="slot" data-id="${esc(x.id)}|${t}" aria-label="Segna appuntamento ${esc(x.name)} ${t}"></button>`}}
