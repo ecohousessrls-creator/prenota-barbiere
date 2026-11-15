@@ -98,7 +98,7 @@ a.btn{text-decoration:none;display:inline-block}
 .gc.busy{background:var(--red);color:#fff;cursor:pointer}
 .gc.busy b,.gc.busy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gc.busy b{font-weight:600}
-.gc.busy.dn{background:var(--muted)}
+.gc.busy.dn{background:#2E8B57}
 .gc.free:hover{border-color:var(--blue)}
 .gc.sel{border:2px solid var(--blue);background:var(--blue-soft)}
 #sheet{max-height:85%;overflow:auto;position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:2px solid var(--ink);padding:8px 12px 10px;box-shadow:0 -6px 20px rgba(0,0,0,.18)}
@@ -160,6 +160,7 @@ a.btn{text-decoration:none;display:inline-block}
     <div class="row"><h2 id="b-hello" style="margin:0"></h2><button class="btn sm" type="button" data-act="logout">Esci</button></div>
     <div><h2>Da ricordare oggi</h2><p class="muted" style="margin:0 0 10px">Clienti di domani: tocca per mandare il promemoria su WhatsApp.</p><div class="list" id="c-remind"></div></div>
     <div><h2>Tutti gli appuntamenti</h2><div class="list" id="c-all"></div></div>
+    <div><h2>Clienti</h2><input type="search" id="cl-q" placeholder="Cerca per nome o numero" autocomplete="off" aria-label="Cerca cliente"><div class="list" id="c-clients" style="margin-top:10px"></div></div>
     <div><h2>Agenda</h2><div class="days mons" id="c-bmons"></div><div class="days" id="c-bdays"></div><div class="gg" id="c-grid" style="margin-top:10px"></div>
       <p class="muted" style="margin:8px 0 0">Tocca una casella bianca per segnare un appuntamento. Rosso occupato, grigio fatto.</p></div>
     <div><h2>Barbieri</h2><div class="card fields" id="c-team"></div><p class="msg" id="m-team" role="status"></p></div>
@@ -218,6 +219,8 @@ const FS='https://firestore.googleapis.com/v1/projects/prenota-barbiere-825cb/da
 const JH={'Content-Type':'application/json'};
 let CL={};try{CL=JSON.parse(localStorage.getItem('clients')||'{}')}catch(e){}
 function learn(list){let ch=false;for(const x of list||[]){const n=(x.name||'').trim();if(n.length<2)continue;const k=n.toLowerCase(),o=CL[k];if(!o||(x.phone&&o.phone!==x.phone)||(x.email&&o.email!==x.email)){CL[k]={name:n,phone:x.phone||(o?o.phone:''),email:x.email||(o?o.email:'')||''};ch=true}}if(ch)try{localStorage.setItem('clients',JSON.stringify(CL))}catch(e){}}
+function renderClients(){const el=$('#c-clients');if(!el)return;const q=($('#cl-q').value||'').trim().toLowerCase();const l=Object.values(CL).filter(c=>!q||c.name.toLowerCase().includes(q)||(c.phone||'').includes(q)).sort((a,z)=>a.name.localeCompare(z.name));el.innerHTML=l.map(c=>`<div class="card"><b>${esc(c.name)}</b><p class="muted" style="margin:0">${esc([c.phone,c.email].filter(Boolean).join(' · ')||'senza contatti')}</p></div>`).join('')||'<p class="muted">Nessun cliente.</p>'}
+addEventListener('input',e=>{if(e.target.id==='cl-q')renderClients()});
 function suggest(){const q=$('#g-in').value.trim().toLowerCase(),box=$('#c-sug');if(q.length<2){box.innerHTML='';return}
   const hit=Object.values(CL).filter(c=>c.name.toLowerCase().split(' ').some(w=>w.startsWith(q))).slice(0,5);
   box.innerHTML=hit.map(c=>`<button class="opt" type="button" data-act="pick" data-id="${esc(c.name.toLowerCase())}">${esc(c.name)}${c.phone?' · '+esc(c.phone):''}</button>`).join('')}
@@ -303,10 +306,11 @@ function render(){
   if(S.add&&S.add.edit&&!eb)S.add=null;
   $('#sheet').style.display=S.add&&ad&&S.auth?'':'none';
   if(S.add&&ad){$('#sh-title').textContent=`${eb?'Modifica: ':''}${ad.name} · ${longDay(eb?eb.date:S.bdate)} · ${S.add.t}`;
-    $('#sh-acts').innerHTML=`<button class="btn sm good" type="button" data-act="sheetsave">Salva</button>${eb?`<button class="btn sm warn" type="button" data-act="cancel" data-id="${esc(eb.id)}">${S.confirm===eb.id?'Tocca ancora per cancellare':'Cancella appuntamento'}</button>`:''}<button class="btn sm" type="button" data-act="addclose">Chiudi</button>`}
+    $('#sh-acts').innerHTML=`<button class="btn sm good" type="button" data-act="sheetsave">Salva</button>${eb&&!eb.done?`<button class="btn sm" type="button" data-act="done" data-id="${esc(eb.id)}">È arrivato</button>`:''}${eb?`<button class="btn sm warn" type="button" data-act="cancel" data-id="${esc(eb.id)}">${S.confirm===eb.id?'Tocca ancora per cancellare':'Cancella appuntamento'}</button>`:''}<button class="btn sm" type="button" data-act="addclose">Chiudi</button>`}
   const all=S.bookings.filter(x=>x.barber===S.who&&x.date>=today).sort((a,z)=>(a.date+a.time).localeCompare(z.date+z.time));let lastD='';
   $('#c-all').innerHTML=all.map(x=>{const h=x.date!==lastD?`<p class="muted" style="margin:6px 0 0;font-weight:600;text-transform:capitalize">${esc(longDay(x.date))}</p>`:'';lastD=x.date;return h+bkHtml(x,true)}).join('')||'<p class="muted">Nessun appuntamento in arrivo.</p>';
   const tom=nextDays(2)[1],rm=S.bookings.filter(x=>x.barber===S.who&&x.date===tom).sort((a,z)=>a.time.localeCompare(z.time));
+  renderClients();
   $('#c-remind').innerHTML=rm.map(x=>bkHtml(x,true)).join('')||'<p class="muted">Domani non hai appuntamenti.</p>';
   $('#c-myworks').innerHTML=S.works.filter(w=>w.barber===S.who).map(w=>figHtml(w,true)).join('');
 }
@@ -463,7 +467,7 @@ document.addEventListener('click',e=>{
   else if(a==='qsv')S.qsv=id;
   else if(a==='addclose')S.add=null;
   else if(a==='cancel')return cancelBk(id);
-  else if(a==='done')return doneBk(id);
+  else if(a==='done'){S.add=null;return doneBk(id)}
   else if(a==='savehours')return saveHours();
   else if(a==='delwork')return delWork(id);
   say('#m-book','','');render();
