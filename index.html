@@ -53,7 +53,9 @@ h2 .n{color:var(--red);font-variant-numeric:tabular-nums}
 .row{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .price{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
 .days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
-.days .opt{flex:0 0 66px;text-align:center;padding:8px 4px}
+ .mons{margin-bottom:8px}
+.days.mons .opt{flex:0 0 auto;padding:6px 12px;text-transform:capitalize;font-size:14px}
+.days .opt{flex:0 0 86px;text-align:center;padding:8px 4px}
 .days .opt b{font-family:var(--display);font-size:26px;line-height:1}
 .days .opt small{text-transform:uppercase;font-size:11px;letter-spacing:.06em}
 label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:4px}
@@ -125,12 +127,13 @@ a.btn{text-decoration:none;display:inline-block}
   <section class="view" id="v-prenota">
     <div><h2><span class="n">1</span>Scegli il barbiere</h2><div class="grid g3" id="c-barbers"></div></div>
     <div><h2><span class="n">2</span>Scegli il servizio</h2><div class="grid" id="c-services"></div></div>
-    <div><h2><span class="n">3</span>Giorno e ora</h2><div class="days" id="c-days"></div><div class="grid g4" id="c-slots" style="margin-top:10px"></div><p class="muted" id="c-slotmsg"></p></div>
+    <div><h2><span class="n">3</span>Giorno e ora</h2><div class="days mons" id="c-mons"></div><div class="days" id="c-days"></div><div class="grid g4" id="c-slots" style="margin-top:10px"></div><p class="muted" id="c-slotmsg"></p></div>
     <div><h2><span class="n">4</span>Prodotti da ritirare <span class="muted" style="text-transform:none;letter-spacing:0;font-family:var(--body)">facoltativo</span></h2><div class="grid" id="c-products"></div></div>
     <div><h2><span class="n">5</span>I tuoi dati</h2>
       <div class="fields">
         <div><label for="f-name">Nome e cognome</label><input type="text" id="f-name" autocomplete="name"></div>
         <div><label for="f-phone">Telefono</label><input type="tel" id="f-phone" autocomplete="tel" inputmode="tel"></div>
+        <div><label for="f-mail">Email (facoltativa)</label><input type="email" id="f-mail" autocomplete="email" inputmode="email"></div>
       </div>
     </div>
     <div class="card sum" id="c-sum"></div>
@@ -157,7 +160,7 @@ a.btn{text-decoration:none;display:inline-block}
     <div class="row"><h2 id="b-hello" style="margin:0"></h2><button class="btn sm" type="button" data-act="logout">Esci</button></div>
     <div><h2>Da ricordare oggi</h2><p class="muted" style="margin:0 0 10px">Clienti di domani: tocca per mandare il promemoria su WhatsApp.</p><div class="list" id="c-remind"></div></div>
     <div><h2>Tutti gli appuntamenti</h2><div class="list" id="c-all"></div></div>
-    <div><h2>Agenda</h2><div class="days" id="c-bdays"></div><div class="gg" id="c-grid" style="margin-top:10px"></div>
+    <div><h2>Agenda</h2><div class="days mons" id="c-bmons"></div><div class="days" id="c-bdays"></div><div class="gg" id="c-grid" style="margin-top:10px"></div>
       <p class="muted" style="margin:8px 0 0">Tocca una casella bianca per segnare un appuntamento. Rosso occupato, grigio fatto.</p></div>
     <div><h2>Barbieri</h2><div class="card fields" id="c-team"></div><p class="msg" id="m-team" role="status"></p></div>
     <div><h2>Orari di lavoro</h2><div class="card" id="c-hours"></div><p class="msg" id="m-hours" role="status"></p></div>
@@ -179,6 +182,7 @@ a.btn{text-decoration:none;display:inline-block}
   <input type="text" id="g-in" placeholder="Nome" autocomplete="off" enterkeyhint="done" aria-label="Nome">
   <div class="chips" id="c-sug"></div>
   <div class="two"><input type="text" id="g-sur" placeholder="Cognome (facoltativo)" autocomplete="off" aria-label="Cognome"><input type="tel" id="g-tel" placeholder="Telefono (facoltativo)" inputmode="tel" autocomplete="off" aria-label="Telefono"></div>
+  <input type="email" id="g-mail" placeholder="Email (facoltativa)" inputmode="email" autocomplete="off" aria-label="Email">
   <div class="chips" id="c-qsv"></div>
   <div id="sh-acts" style="display:flex;gap:8px;flex-wrap:wrap"></div>
   <p class="msg" id="m-add" role="status"></p>
@@ -213,12 +217,12 @@ try{const a=JSON.parse(sessionStorage.getItem('barber')||'null');if(a){S.auth=tr
 const FS='https://firestore.googleapis.com/v1/projects/prenota-barbiere-825cb/databases/(default)/documents/bookings';
 const JH={'Content-Type':'application/json'};
 let CL={};try{CL=JSON.parse(localStorage.getItem('clients')||'{}')}catch(e){}
-function learn(list){let ch=false;for(const x of list||[]){const n=(x.name||'').trim();if(n.length<2)continue;const k=n.toLowerCase(),o=CL[k];if(!o||(x.phone&&o.phone!==x.phone)){CL[k]={name:n,phone:x.phone||(o?o.phone:'')};ch=true}}if(ch)try{localStorage.setItem('clients',JSON.stringify(CL))}catch(e){}}
+function learn(list){let ch=false;for(const x of list||[]){const n=(x.name||'').trim();if(n.length<2)continue;const k=n.toLowerCase(),o=CL[k];if(!o||(x.phone&&o.phone!==x.phone)||(x.email&&o.email!==x.email)){CL[k]={name:n,phone:x.phone||(o?o.phone:''),email:x.email||(o?o.email:'')||''};ch=true}}if(ch)try{localStorage.setItem('clients',JSON.stringify(CL))}catch(e){}}
 function suggest(){const q=$('#g-in').value.trim().toLowerCase(),box=$('#c-sug');if(q.length<2){box.innerHTML='';return}
   const hit=Object.values(CL).filter(c=>c.name.toLowerCase().split(' ').some(w=>w.startsWith(q))).slice(0,5);
   box.innerHTML=hit.map(c=>`<button class="opt" type="button" data-act="pick" data-id="${esc(c.name.toLowerCase())}">${esc(c.name)}${c.phone?' · '+esc(c.phone):''}</button>`).join('')}
-const fsEnc=o=>({fields:{barber:{stringValue:o.barber},service:{stringValue:o.service},date:{stringValue:o.date},time:{stringValue:o.time},min:{integerValue:String(o.min)},name:{stringValue:o.name},phone:{stringValue:o.phone},products:{arrayValue:{values:(o.products||[]).map(p=>({stringValue:p}))}},ts:{integerValue:String(o.ts)},done:{booleanValue:!!o.done}}});
-const fsDec=d=>{const f=d.fields||{};return{id:d.name.split('/').pop(),barber:f.barber?.stringValue,service:f.service?.stringValue,date:f.date?.stringValue,time:f.time?.stringValue,min:Number(f.min?.integerValue||30),name:f.name?.stringValue,phone:f.phone?.stringValue,products:(f.products?.arrayValue?.values||[]).map(v=>v.stringValue),done:!!f.done?.booleanValue}};
+const fsEnc=o=>({fields:{barber:{stringValue:o.barber},service:{stringValue:o.service},date:{stringValue:o.date},time:{stringValue:o.time},min:{integerValue:String(o.min)},name:{stringValue:o.name},phone:{stringValue:o.phone},email:{stringValue:o.email||''},products:{arrayValue:{values:(o.products||[]).map(p=>({stringValue:p}))}},ts:{integerValue:String(o.ts)},done:{booleanValue:!!o.done}}});
+const fsDec=d=>{const f=d.fields||{};return{id:d.name.split('/').pop(),barber:f.barber?.stringValue,service:f.service?.stringValue,date:f.date?.stringValue,time:f.time?.stringValue,min:Number(f.min?.integerValue||30),name:f.name?.stringValue,phone:f.phone?.stringValue,email:f.email?.stringValue||'',products:(f.products?.arrayValue?.values||[]).map(v=>v.stringValue),done:!!f.done?.booleanValue}};
 const FSC=FS.replace('/bookings','/shop/config');
 async function saveCfg(cfg){if(S.db)await S.db.doc('shop/config').set(cfg);else if(S.remote){const r=await fetch(FSC,{method:'PATCH',headers:JH,body:JSON.stringify({fields:{json:{stringValue:JSON.stringify(cfg)}}})});if(!r.ok)throw new Error('fs')}S.cfg=cfg;S.cfgStr=JSON.stringify(cfg)}
 async function fsLoad(){const [r,rc]=await Promise.all([fetch(FS+'?pageSize=300'),fetch(FSC).catch(()=>null)]);if(!r.ok)throw new Error('fs');const j=await r.json();
@@ -228,6 +232,10 @@ const saveLocal=()=>{if(S.db||S.remote)return;try{localStorage.setItem('demoBook
 const barber=id=>(S.cfg.barbers||[]).find(b=>b.id===id);
 const service=id=>(S.cfg.services||[]).find(s=>s.id===id);
 const product=id=>(S.cfg.products||[]).find(p=>p.id===id);
+const WDL=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+const MONS=()=>{const o=[];const d=dObj(today.slice(0,7)+'-01');for(let i=0;i<14;i++){o.push(ymd(d).slice(0,7));d.setMonth(d.getMonth()+1)}return o};
+const monDays=m=>{const o=[];const d=dObj(m+'-01');while(ymd(d).slice(0,7)===m){const s=ymd(d);if(s>=today)o.push(s);d.setDate(d.getDate()+1)}return o};
+const monHtml=(act,cur)=>MONS().map(m=>`<button class="opt" type="button" data-act="${act}" data-id="${m}" aria-pressed="${cur===m}">${dObj(m+'-01').toLocaleDateString('it-IT',{month:'long',year:'numeric'})}</button>`).join('');
 const nextDays=n=>{const o=[];const d=new Date();for(let i=0;i<n;i++){o.push(ymd(d));d.setDate(d.getDate()+1)}return o};
 
 function slots(b,date,dur){
@@ -249,8 +257,9 @@ function render(){
   $('#c-barbers').innerHTML=(c.barbers||[]).map(b=>`<button class="opt c" type="button" data-act="barber" data-id="${esc(b.id)}" aria-pressed="${sel.barber===b.id}">${esc(b.name)}</button>`).join('')||'<p class="muted">Nessun barbiere inserito.</p>';
   $('#c-services').innerHTML=(c.services||[]).map(s=>`<button class="opt" type="button" data-act="service" data-id="${esc(s.id)}" aria-pressed="${sel.service===s.id}"><span class="row"><span><b>${esc(s.name)}</b><small>${s.min} minuti${s.desc?' · '+esc(s.desc):''}</small></span><span class="price">${eur(s.price)}</span></span></button>`).join('');
   const b=barber(sel.barber),sv=service(sel.service);
-  $('#c-days').innerHTML=nextDays(14).map(d=>{const o=dObj(d),closed=b&&!(b.days||[]).includes(o.getDay());
-    return `<button class="opt" type="button" data-act="date" data-id="${d}" aria-pressed="${sel.date===d}" ${closed?'disabled':''}><small>${WD[o.getDay()]}</small><b>${o.getDate()}</b><small>${o.toLocaleDateString('it-IT',{month:'short'})}</small></button>`}).join('');
+  const cm=S.cmon||today.slice(0,7);$('#c-mons').innerHTML=monHtml('cmon',cm);
+  $('#c-days').innerHTML=monDays(cm).map(d=>{const o=dObj(d),closed=b&&!(b.days||[]).includes(o.getDay());
+    return `<button class="opt" type="button" data-act="date" data-id="${d}" aria-pressed="${sel.date===d}" ${closed?'disabled':''}><small>${WDL[o.getDay()]}</small><b>${o.getDate()}</b><small>${o.toLocaleDateString('it-IT',{month:'short'})}</small></button>`}).join('');
   let sm='';
   if(!b||!sv||!sel.date){$('#c-slots').innerHTML='';sm='Scegli barbiere, servizio e giorno per vedere gli orari liberi.'}
   else{const sl=slots(b,sel.date,sv.min);
@@ -274,8 +283,9 @@ function render(){
   if(lw.dataset.sig!==sig){lw.dataset.sig=sig;lw.innerHTML=(c.barbers||[]).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}
   $('#b-login').style.display=S.auth?'none':'';$('#b-area').style.display=S.auth?'flex':'none';
   $('#b-hello').textContent=S.auth?'Ciao '+(barber(S.who)?.name||''):'';
-  $('#c-bdays').innerHTML=nextDays(14).map(d=>{const o=dObj(d),n=S.bookings.filter(x=>x.barber===S.who&&x.date===d).length;
-    return `<button class="opt" type="button" data-act="bdate" data-id="${d}" aria-pressed="${S.bdate===d}"><small>${WD[o.getDay()]}</small><b>${o.getDate()}</b><small>${n?n+' app.':'libero'}</small></button>`}).join('');
+  $('#c-bmons').innerHTML=monHtml('bmon',S.bdate.slice(0,7));
+  $('#c-bdays').innerHTML=monDays(S.bdate.slice(0,7)).map(d=>{const o=dObj(d),n=S.bookings.filter(x=>x.barber===S.who&&x.date===d).length;
+    return `<button class="opt" type="button" data-act="bdate" data-id="${d}" aria-pressed="${S.bdate===d}"><small>${WDL[o.getDay()]}</small><b>${o.getDate()}</b><small>${n?n+' app.':'libero'}</small></button>`}).join('');
   const bs=c.barbers||[],gd=dObj(S.bdate).getDay();
   if(!service(S.qsv))S.qsv=(c.services||[])[0]?.id||null;
   $('#c-qsv').innerHTML=(c.services||[]).map(s=>`<button class="opt" type="button" data-act="qsv" data-id="${esc(s.id)}" aria-pressed="${S.qsv===s.id}">${esc(s.name)}</button>`).join('');
@@ -310,7 +320,7 @@ function bkHtml(x,forBarber){
   const prods=(x.products||[]).map(id=>product(id)?.name).filter(Boolean).join(', ');
   return `<div class="card bk ${x.done?'done':''}"><div class="t">${esc(x.time)}</div><div>
     <p><b>${esc(forBarber?x.name:(sv?.name||'Servizio'))}</b> ${x.done?'<span class="pill">Fatto</span>':''}</p>
-    <p class="muted">${forBarber?esc(sv?.name||'')+' · '+(x.min||30)+' min · '+esc(x.phone||''):'con '+esc(b?.name||'')+' · '+esc(longDay(x.date))}</p>
+    <p class="muted">${forBarber?esc(sv?.name||'')+' · '+(x.min||30)+' min · '+esc(x.phone||'')+(x.email?' · '+esc(x.email):''):'con '+esc(b?.name||'')+' · '+esc(longDay(x.date))}</p>
     ${prods?`<p class="muted">Da ritirare: ${esc(prods)}</p>`:''}
     <div class="acts">${forBarber&&!x.done?`<a class="btn sm" href="${esc(waLink(x))}" target="_blank" rel="noopener">Ricorda su WhatsApp</a><button class="btn sm good" type="button" data-act="done" data-id="${esc(x.id)}">Segna come fatto</button>`:''}
     <button class="btn sm warn" type="button" data-act="cancel" data-id="${esc(x.id)}">${ask?'Tocca ancora per annullare':'Annulla'}</button></div>
@@ -336,7 +346,7 @@ async function book(){
   if(phone.replace(/\D/g,'').length<6)return say('#m-book','Scrivi un numero di telefono valido.','err');
   if(!slots(b,sel.date,sv.min).find(x=>x.t===sel.time&&x.free))return say('#m-book','Questo orario è appena stato preso. Scegline un altro.','err');
   const id=sel.date+'_'+b.id+'_'+sel.time.replace(':','');
-  const rec={barber:b.id,service:sv.id,date:sel.date,time:sel.time,min:sv.min,name,phone,products:[...sel.products],by:S.uid||null,ts:Date.now(),done:false};
+  const rec={barber:b.id,service:sv.id,date:sel.date,time:sel.time,min:sv.min,name,phone,email:($('#f-mail').value||'').trim().slice(0,80),products:[...sel.products],by:S.uid||null,ts:Date.now(),done:false};
   $('#b-book').disabled=true;
   try{
     if(S.db){const ref=S.db.doc('bookings/'+id);const snap=await ref.get();
@@ -371,21 +381,21 @@ async function saveBooking(id,rec){
 }
 async function addByBarber(){
   const a=S.add,gi=$('#g-in');if(!a||S.saving)return;const b=barber(a.b),sv=service(S.qsv);
-  const name=(gi.value.trim()+' '+$('#g-sur').value.trim()).trim(),phone=$('#g-tel').value.trim();
+  const name=(gi.value.trim()+' '+$('#g-sur').value.trim()).trim(),phone=$('#g-tel').value.trim(),email=$('#g-mail').value.trim().slice(0,80);
   if(gi.value.trim().length<2)return say('#m-add','Scrivi il nome del cliente.','err');
   const old=a.edit?S.bookings.find(x=>x.id===a.edit):null,date=old?old.date:S.bdate;
   const fits=b&&sv&&!S.bookings.some(x=>x.barber===b.id&&x.date===date&&x.id!==a.edit&&toMin(a.t)<toMin(x.time)+(x.min||30)&&toMin(a.t)+sv.min>toMin(x.time))&&toMin(a.t)+sv.min<=toMin(b.end);
   if(!fits)return say('#m-add',sv?sv.name+' non ci sta in questo orario. Scegli un servizio più corto o un altro orario.':'Scegli un servizio.','err');
   S.saving=true;
   try{
-    if(old){const ch={service:sv.id,min:sv.min,name,phone};
+    if(old){const ch={service:sv.id,min:sv.min,name,phone,email};
       if(S.db)await S.db.doc('bookings/'+old.id).update(ch);
-      else if(S.remote){const r=await fetch(FS+'/'+encodeURIComponent(old.id)+'?updateMask.fieldPaths=service&updateMask.fieldPaths=min&updateMask.fieldPaths=name&updateMask.fieldPaths=phone',{method:'PATCH',headers:JH,body:JSON.stringify({fields:{service:{stringValue:sv.id},min:{integerValue:String(sv.min)},name:{stringValue:name},phone:{stringValue:phone}}})});if(!r.ok)throw new Error('fs')}
+      else if(S.remote){const r=await fetch(FS+'/'+encodeURIComponent(old.id)+'?updateMask.fieldPaths=service&updateMask.fieldPaths=min&updateMask.fieldPaths=name&updateMask.fieldPaths=phone&updateMask.fieldPaths=email',{method:'PATCH',headers:JH,body:JSON.stringify({fields:{service:{stringValue:sv.id},min:{integerValue:String(sv.min)},name:{stringValue:name},phone:{stringValue:phone},email:{stringValue:email}}})});if(!r.ok)throw new Error('fs')}
       Object.assign(old,ch);saveLocal();
     }else{const id=date+'_'+b.id+'_'+a.t.replace(':','');
-      const rec={barber:b.id,service:sv.id,date,time:a.t,min:sv.min,name,phone,products:[],by:null,ts:Date.now(),done:false};
+      const rec={barber:b.id,service:sv.id,date,time:a.t,min:sv.min,name,phone,email,products:[],by:null,ts:Date.now(),done:false};
       if(!(await saveBooking(id,rec))){say('#m-add','Questo orario è appena stato preso.','err');return}}
-    learn([{name,phone}]);
+    learn([{name,phone,email}]);
     if(S.add===a)S.add=null;say('#m-add','','');render()}
   catch(e){say('#m-add','Non salvato. Riprova.','err')}
   finally{S.saving=false}
@@ -443,10 +453,12 @@ document.addEventListener('click',e=>{
   else if(a==='who'){S.who=id;render();renderHours();return}
   else if(a==='logout'){S.auth=false;try{sessionStorage.removeItem('barber')}catch(e){}}
   else if(a==='bdate'){S.bdate=id;S.add=null}
-  else if(a==='slot'){const p=id.split('|');S.add={b:p[0],t:p[1]};$('#g-in').value='';$('#g-sur').value='';$('#g-tel').value='';$('#c-sug').innerHTML='';say('#m-add','','');$('#sheet').style.display='';$('#g-in').focus()}
-  else if(a==='edit'){const k=S.bookings.find(x=>x.id===id);if(k){S.add={b:k.barber,t:k.time,edit:k.id};S.qsv=k.service;$('#g-in').value=k.name||'';$('#g-sur').value='';$('#g-tel').value=k.phone||'';$('#c-sug').innerHTML='';say('#m-add','','')}}
+  else if(a==='bmon'){const md=monDays(id);if(md.length)S.bdate=md[0];S.add=null}
+  else if(a==='cmon'){S.cmon=id;sel.date=null;sel.time=null}
+  else if(a==='slot'){const p=id.split('|');S.add={b:p[0],t:p[1]};$('#g-in').value='';$('#g-sur').value='';$('#g-tel').value='';$('#g-mail').value='';$('#c-sug').innerHTML='';say('#m-add','','');$('#sheet').style.display='';$('#g-in').focus()}
+  else if(a==='edit'){const k=S.bookings.find(x=>x.id===id);if(k){S.add={b:k.barber,t:k.time,edit:k.id};S.qsv=k.service;$('#g-in').value=k.name||'';$('#g-sur').value='';$('#g-tel').value=k.phone||'';$('#g-mail').value=k.email||'';$('#c-sug').innerHTML='';say('#m-add','','')}}
   else if(a==='savenames'||a==='addbarber'||a==='delbarber')return teamAct(a,id);
-  else if(a==='pick'){const c=CL[id];if(c){$('#g-in').value=c.name;$('#g-sur').value='';$('#g-tel').value=c.phone||'';$('#c-sug').innerHTML=''}return}
+  else if(a==='pick'){const c=CL[id];if(c){$('#g-in').value=c.name;$('#g-sur').value='';$('#g-tel').value=c.phone||'';$('#g-mail').value=c.email||'';$('#c-sug').innerHTML=''}return}
   else if(a==='sheetsave')return addByBarber();
   else if(a==='qsv')S.qsv=id;
   else if(a==='addclose')S.add=null;
