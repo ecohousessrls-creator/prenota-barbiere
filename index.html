@@ -99,9 +99,12 @@ a.btn{text-decoration:none;display:inline-block}
 .gc.busy.dn{background:var(--muted)}
 .gc.free:hover{border-color:var(--blue)}
 .gc.sel{border:2px solid var(--blue);background:var(--blue-soft)}
-#sheet{max-height:85%;overflow:auto;position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:2px solid var(--ink);padding:12px 16px 16px;box-shadow:0 -6px 20px rgba(0,0,0,.18)}
-.sheet-in{max-width:560px;margin:0 auto;display:grid;gap:10px}
-#sh-title{margin:0;font-weight:600}
+#sheet{max-height:85%;overflow:auto;position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:2px solid var(--ink);padding:8px 12px 10px;box-shadow:0 -6px 20px rgba(0,0,0,.18)}
+.sheet-in{max-width:560px;margin:0 auto;display:grid;gap:6px}
+#sh-title{margin:0;font-weight:600;font-size:14px}
+#sheet input{min-height:40px;padding:8px 10px}
+#sheet .chips{gap:6px}
+#sheet .chips .opt{min-height:34px;padding:5px 10px;font-size:14px}
 :focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 @media (max-width:360px){.g4{grid-template-columns:repeat(3,1fr)} h1{font-size:38px}}
 </style>
@@ -156,6 +159,7 @@ a.btn{text-decoration:none;display:inline-block}
     <div><h2>Tutti gli appuntamenti</h2><div class="list" id="c-all"></div></div>
     <div><h2>Agenda</h2><div class="days" id="c-bdays"></div><div class="gg" id="c-grid" style="margin-top:10px"></div>
       <p class="muted" style="margin:8px 0 0">Tocca una casella bianca per segnare un appuntamento. Rosso occupato, grigio fatto.</p></div>
+    <div><h2>Barbieri</h2><div class="card fields" id="c-team"></div><p class="msg" id="m-team" role="status"></p></div>
     <div><h2>Orari di lavoro</h2><div class="card" id="c-hours"></div><p class="msg" id="m-hours" role="status"></p></div>
     <div><h2>Aggiungi una foto</h2>
       <div class="card fields">
@@ -193,7 +197,7 @@ const WD=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
 
 // Example setup, used only until the saved one loads or when saving is unavailable.
 const DEMO={name:'La tua barberia',
-  barbers:[{id:'b1',name:'Armand',days:[2,3,4,5,6],start:'09:00',end:'19:00'},{id:'b2',name:'Luca',days:[2,3,4,5,6],start:'09:00',end:'19:00'},{id:'b3',name:'Dario',days:[3,4,5,6],start:'10:00',end:'19:30'}],
+  barbers:[{id:'b1',name:'Armando',days:[2,3,4,5,6],start:'09:00',end:'19:00'},{id:'b2',name:'Luca',days:[2,3,4,5,6],start:'09:00',end:'19:00'},{id:'b3',name:'Dario',days:[3,4,5,6],start:'10:00',end:'19:30'}],
   services:[{id:'s1',name:'Taglio capelli',min:30,price:18,desc:'Shampoo prima, taglio, shampoo dopo e pettinatura'},{id:'s2',name:'Barba',min:30,price:10},{id:'s3',name:'Taglio + barba',min:60,price:25,desc:'Shampoo prima, taglio, barba, shampoo dopo e pettinatura'},{id:'s4',name:'Taglio bambino',min:30,price:12}],
   products:[{id:'p1',name:'Cera opaca',price:12},{id:'p2',name:'Olio da barba',price:14},{id:'p3',name:'Shampoo uomo',price:9}]};
 
@@ -215,7 +219,11 @@ function suggest(){const q=$('#g-in').value.trim().toLowerCase(),box=$('#c-sug')
   box.innerHTML=hit.map(c=>`<button class="opt" type="button" data-act="pick" data-id="${esc(c.name.toLowerCase())}">${esc(c.name)}${c.phone?' · '+esc(c.phone):''}</button>`).join('')}
 const fsEnc=o=>({fields:{barber:{stringValue:o.barber},service:{stringValue:o.service},date:{stringValue:o.date},time:{stringValue:o.time},min:{integerValue:String(o.min)},name:{stringValue:o.name},phone:{stringValue:o.phone},products:{arrayValue:{values:(o.products||[]).map(p=>({stringValue:p}))}},ts:{integerValue:String(o.ts)},done:{booleanValue:!!o.done}}});
 const fsDec=d=>{const f=d.fields||{};return{id:d.name.split('/').pop(),barber:f.barber?.stringValue,service:f.service?.stringValue,date:f.date?.stringValue,time:f.time?.stringValue,min:Number(f.min?.integerValue||30),name:f.name?.stringValue,phone:f.phone?.stringValue,products:(f.products?.arrayValue?.values||[]).map(v=>v.stringValue),done:!!f.done?.booleanValue}};
-async function fsLoad(){const r=await fetch(FS+'?pageSize=300');if(!r.ok)throw new Error('fs');const j=await r.json();S.all=(j.documents||[]).map(fsDec);S.bookings=S.all.filter(x=>x.name&&x.time&&x.date>=today);S.remote=true;status('live');render()}
+const FSC=FS.replace('/bookings','/shop/config');
+async function saveCfg(cfg){if(S.db)await S.db.doc('shop/config').set(cfg);else if(S.remote){const r=await fetch(FSC,{method:'PATCH',headers:JH,body:JSON.stringify({fields:{json:{stringValue:JSON.stringify(cfg)}}})});if(!r.ok)throw new Error('fs')}S.cfg=cfg;S.cfgStr=JSON.stringify(cfg)}
+async function fsLoad(){const [r,rc]=await Promise.all([fetch(FS+'?pageSize=300'),fetch(FSC).catch(()=>null)]);if(!r.ok)throw new Error('fs');const j=await r.json();
+  let cc=false;if(rc&&rc.ok){try{const js=(await rc.json()).fields.json.stringValue;if(js!==S.cfgStr){const c=JSON.parse(js);if(Array.isArray(c.barbers)&&c.barbers.length){S.cfg=c;S.cfgStr=js;cc=true}}}catch(e){}}
+  S.all=(j.documents||[]).map(fsDec);S.bookings=S.all.filter(x=>x.name&&x.time&&x.date>=today);S.remote=true;status('live');render();if(cc){renderHours();renderTeam()}}
 const saveLocal=()=>{if(S.db||S.remote)return;try{localStorage.setItem('demoBookings',JSON.stringify(S.bookings))}catch(e){}};
 const barber=id=>(S.cfg.barbers||[]).find(b=>b.id===id);
 const service=id=>(S.cfg.services||[]).find(s=>s.id===id);
@@ -344,6 +352,17 @@ async function book(){
   }catch(e){say('#m-book','Prenotazione non salvata. Con questo accesso non puoi scrivere: chiedi al titolare di abilitarti.','err')}
   finally{$('#b-book').disabled=false}
 }
+function renderTeam(){
+  $('#c-team').innerHTML=(S.cfg.barbers||[]).map(b=>`<div class="row"><input type="text" id="t-${esc(b.id)}" value="${esc(b.name)}" maxlength="24" aria-label="Nome barbiere"><button class="btn sm warn" type="button" data-act="delbarber" data-id="${esc(b.id)}">${S.confirm==='del:'+b.id?'Tocca ancora':'Togli'}</button></div>`).join('')+'<button class="btn sm good" type="button" data-act="savenames">Salva i nomi</button><div class="row"><input type="text" id="t-new" placeholder="Nuovo barbiere" maxlength="24" aria-label="Nuovo barbiere"><button class="btn sm" type="button" data-act="addbarber">Aggiungi</button></div>';
+}
+async function teamAct(a,id){
+  const cfg=JSON.parse(JSON.stringify(S.cfg));
+  if(a==='savenames'){for(const b of cfg.barbers){const el=$('#t-'+b.id),v=el?el.value.trim():'';if(v.length>=2)b.name=v}}
+  else if(a==='addbarber'){const v=$('#t-new').value.trim();if(v.length<2)return say('#m-team','Scrivi il nome del nuovo barbiere.','err');cfg.barbers.push({id:'b'+Date.now().toString(36),name:v,days:[2,3,4,5,6],start:'09:00',end:'19:00'})}
+  else if(a==='delbarber'){if(cfg.barbers.length<2)return say('#m-team','Deve restare almeno un barbiere.','err');if(S.confirm!=='del:'+id){S.confirm='del:'+id;renderTeam();return}S.confirm=null;cfg.barbers=cfg.barbers.filter(b=>b.id!==id)}
+  try{await saveCfg(cfg);say('#m-team','Salvato.','ok');render();renderHours();renderTeam()}
+  catch(e){say('#m-team','Non salvato. Riprova.','err')}
+}
 async function saveBooking(id,rec){
   if(S.db){const ref=S.db.doc('bookings/'+id);const snap=await ref.get();if(snap.exists&&snap.data().name)return false;await ref.set(rec)}
   else if(S.remote){const r=await fetch(FS+'?documentId='+encodeURIComponent(id),{method:'POST',headers:JH,body:JSON.stringify(fsEnc(rec))});if(r.status===409)return false;if(!r.ok)throw new Error('fs');S.bookings.push({id,...rec})}
@@ -388,7 +407,7 @@ async function saveHours(){
   if(!start||!end||toMin(end)<=toMin(start))return say('#m-hours','La chiusura deve essere dopo l\'apertura.','err');
   const cfg=JSON.parse(JSON.stringify(S.cfg));const b=cfg.barbers.find(x=>x.id===S.who);if(!b)return;
   Object.assign(b,{start,end,days});
-  try{if(S.db)await S.db.doc('shop/config').set(cfg);S.cfg=cfg;say('#m-hours','Orari salvati.','ok');render()}
+  try{await saveCfg(cfg);say('#m-hours','Orari salvati.','ok');render()}
   catch(e){say('#m-hours','Orari non salvati: con questo accesso non puoi modificarli.','err')}
 }
 function shrink(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file),img=new Image();
@@ -411,9 +430,10 @@ async function delWork(id){
 }
 
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-act]');if(!t)return;
+  const t=e.target.closest('[data-act]');if(!t){if(S.add&&!e.target.closest('#sheet')){S.add=null;render()}return}
   const a=t.dataset.act,id=t.dataset.id,sel=S.sel;
-  if(a!=='cancel')S.confirm=null;
+  if(S.add&&!t.closest('#sheet')&&a!=='slot'&&a!=='edit')S.add=null;
+  if(a!=='cancel'&&a!=='delbarber')S.confirm=null;
   if(a==='barber'){sel.barber=id;const b=barber(id);if(sel.date&&b&&!(b.days||[]).includes(dObj(sel.date).getDay()))sel.date=null}
   else if(a==='service')sel.service=id;
   else if(a==='date'){sel.date=id;sel.time=null}
@@ -425,6 +445,7 @@ document.addEventListener('click',e=>{
   else if(a==='bdate'){S.bdate=id;S.add=null}
   else if(a==='slot'){const p=id.split('|');S.add={b:p[0],t:p[1]};$('#g-in').value='';$('#g-sur').value='';$('#g-tel').value='';$('#c-sug').innerHTML='';say('#m-add','','');$('#sheet').style.display='';$('#g-in').focus()}
   else if(a==='edit'){const k=S.bookings.find(x=>x.id===id);if(k){S.add={b:k.barber,t:k.time,edit:k.id};S.qsv=k.service;$('#g-in').value=k.name||'';$('#g-sur').value='';$('#g-tel').value=k.phone||'';$('#c-sug').innerHTML='';say('#m-add','','')}}
+  else if(a==='savenames'||a==='addbarber'||a==='delbarber')return teamAct(a,id);
   else if(a==='pick'){const c=CL[id];if(c){$('#g-in').value=c.name;$('#g-sur').value='';$('#g-tel').value=c.phone||'';$('#c-sug').innerHTML=''}return}
   else if(a==='sheetsave')return addByBarber();
   else if(a==='qsv')S.qsv=id;
@@ -467,11 +488,11 @@ async function connect(){
   const timer=setTimeout(()=>status('slow'),10000);
   const ok=s=>{if(!s.metadata.fromCache){clearTimeout(timer);status('live')}};
   const err=()=>{clearTimeout(timer);status('err')};
-  db.doc('shop/config').onSnapshot(s=>{ok(s);if(s.exists&&Array.isArray(s.data().barbers)){S.cfg=JSON.parse(JSON.stringify(s.data()));render();renderHours()}},err);
+  db.doc('shop/config').onSnapshot(s=>{ok(s);if(s.exists&&Array.isArray(s.data().barbers)){S.cfg=JSON.parse(JSON.stringify(s.data()));render();renderHours();renderTeam()}},err);
   db.collection('bookings').where('date','>=',today).onSnapshot(s=>{ok(s);S.bookings=s.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.name&&x.time);render()},err);
   db.collection('works').orderBy('ts','desc').limit(40).onSnapshot(s=>{S.works=s.docs.map(d=>({id:d.id,...d.data()}));render()},err);
 }
-route();render();renderHours();status('wait');connect();
+route();render();renderHours();renderTeam();status('wait');connect();
 </script>
 </body>
 </html>
