@@ -102,6 +102,8 @@ a.btn{text-decoration:none;display:inline-block}
 details.fold>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface)}
 details.fold>summary::-webkit-details-marker{display:none}
 details.fold>summary h2{margin:0}
+details.fold.menu>summary{background:var(--ink);color:var(--bg)}
+details.fold.menu>summary h2{color:inherit}
 details.fold>summary::after{content:"+";font-size:22px;line-height:1}
 details.fold[open]>summary::after{content:"−"}
 details.fold[open]>summary{margin-bottom:10px}
@@ -164,16 +166,15 @@ details.fold[open]>summary{margin-bottom:10px}
     </div>
     <div id="b-area" style="display:none;flex-direction:column;gap:22px">
     <div class="row"><h2 id="b-hello" style="margin:0"></h2><button class="btn sm" type="button" data-act="logout">Esci</button></div>
-    <div><h2>Da ricordare oggi</h2><p class="muted" style="margin:0 0 10px">Clienti di domani: tocca per mandare il promemoria su WhatsApp.</p><div class="list" id="c-remind"></div></div>
-    <div><h2>Tutti gli appuntamenti</h2><div class="list" id="c-all"></div></div>
-    <div><h2>Agenda</h2><div class="days mons" id="c-bmons"></div><div class="days" id="c-bdays"></div><div class="gg" id="c-grid" style="margin-top:10px"></div>
-      <p class="muted" style="margin:8px 0 0">Tocca una casella bianca per segnare un appuntamento. Rosso occupato, verde arrivato.</p></div>
+    <details class="fold menu"><summary><h2>Menu</h2></summary><div style="display:flex;flex-direction:column;gap:10px">
+    <details class="fold"><summary><h2>Da ricordare oggi</h2></summary><p class="muted" style="margin:0 0 10px">Clienti di domani: tocca per mandare il promemoria su WhatsApp.</p><div class="list" id="c-remind"></div></details>
+    <details class="fold"><summary><h2>Tutti gli appuntamenti</h2></summary><div class="list" id="c-all"></div></details>
     <details class="fold"><summary><h2>Clienti</h2></summary><input type="search" id="cl-q" placeholder="Cerca per nome o numero" autocomplete="off" aria-label="Cerca cliente"><div class="list" id="c-clients" style="margin-top:10px"></div></details>
     <details class="fold"><summary><h2>Barbieri</h2></summary><div class="card fields" id="c-team"></div></details>
     <details class="fold"><summary><h2>Orari di lavoro</h2></summary><div class="card" id="c-hours"></div><p class="msg" id="m-hours" role="status"></p></details>
     <details class="fold"><summary><h2>Giorni di chiusura</h2></summary><p class="muted" style="margin:0 0 10px">Festivi e ferie: il negozio resta chiuso per tutti. I giorni fissi della settimana si tolgono da Orari di lavoro.</p><div class="card fields" id="c-shut"></div></details>
     <p class="msg" id="m-team" role="status"></p>
-    <div><h2>Aggiungi una foto</h2>
+    <details class="fold"><summary><h2>Aggiungi una foto</h2></summary>
       <div class="card fields">
         <div><label for="f-photo">Foto del lavoro</label><input type="file" id="f-photo" accept="image/*"></div>
         <div><label for="f-cap">Descrizione</label><input type="text" id="f-cap" maxlength="60" placeholder="Es. sfumatura media con riga"></div>
@@ -181,7 +182,10 @@ details.fold[open]>summary{margin-bottom:10px}
         <p class="msg" id="m-photo" role="status"></p>
       </div>
       <div class="gal" id="c-myworks" style="margin-top:10px"></div>
-    </div>
+    </details>
+    </div></details>
+    <div><h2>Agenda</h2><div class="days mons" id="c-bmons"></div><div class="days" id="c-bdays"></div><div class="gg" id="c-grid" style="margin-top:10px"></div>
+      <p class="muted" style="margin:8px 0 0">Tocca una casella bianca per segnare un appuntamento. Rosso occupato, verde arrivato.</p></div>
     </div>
   </section>
 </div>
